@@ -1,0 +1,24 @@
+---
+title: "Plotting in R"
+output: html_notebook
+---
+
+# Load Libraries
+
+```{r}
+rm(list=ls())
+
+library(DBI)
+library(odbc)
+library(tidyverse)
+library(RColorBrewer)
+
+```
+
+# Load Data
+
+```{r}
+usn <- 5
+
+```
+
