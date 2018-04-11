@@ -13,12 +13,114 @@ library(odbc)
 library(tidyverse)
 library(RColorBrewer)
 
+grabData <- function(dbString, queryString)
+{
+  # Open a connection
+  connection <- dbConnect(odbc::odbc(),
+                          dbString)
+  
+  response <- dbSendQuery(connection, queryString)
+  tbl <- dbFetch(response)
+  dbClearResult(response)
+  
+  # disconnect from the database
+  dbDisconnect(connection)
+  
+  return(as_tibble(tbl))
+}
+
 ```
 
 # Load Data
 
 ```{r}
-usn <- 5
+usn <- grabData('usn','SELECT * FROM dbo.[Rankings Data]') %>%
+  mutate(Type = ifelse(Control=='Public', 1, ifelse(Control=='Private', 2, 3))) %>%
+  filter(Type < 3)
 
+usn
+
+```
+
+# Simple Bar Plot
+
+```{r}
+usn %>%
+  mutate(Type = factor(Type, levels=1:2, labels=c('Public','Private'))) %>%
+  group_by(Type) %>%
+  summarise(`Mean Reputation` = mean(`Peer Assessment Score`, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(aes(x=Type, y=`Mean Reputation`)) +
+    geom_bar(stat='identity', fill='lightblue', color='lightblue')
+```
+
+# Grouped Bar Plot
+
+```{r}
+usn %>%
+  mutate(Type = factor(Type, levels=1:2, labels=c('Public','Private')),
+         Year = factor(YearId)) %>%
+  group_by(Type, Year) %>%
+  summarise(`Mean Reputation` = mean(`Peer Assessment Score`, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(aes(x=Year, y=`Mean Reputation`, fill=Type)) +
+    geom_bar(position='dodge', stat='identity')
+
+```
+
+# Labels on Bar at Top
+
+```{r}
+usn %>%
+  mutate(Type = factor(Type, levels=1:2, labels=c('Public','Private')),
+         Year = factor(YearId)) %>%
+  group_by(Type, Year) %>%
+  summarise(`Mean Reputation` = mean(`Peer Assessment Score`, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(aes(x=Year, y=`Mean Reputation`, fill=Type)) +
+    geom_bar(position='dodge', stat='identity') +
+    geom_text(aes(label=round(`Mean Reputation`, digits=2)), vjust=1.5, color = 'white',
+              position=position_dodge(0.9), size=3)
+
+```
+
+# Labels Above Top of Bar
+
+```{r}
+usn %>%
+  mutate(Type = factor(Type, levels=1:2, labels=c('Public','Private')),
+         Year = factor(YearId)) %>%
+  group_by(Type, Year) %>%
+  summarise(`Mean Reputation` = mean(`Peer Assessment Score`, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(aes(x=Year, y=`Mean Reputation`, fill=Type)) +
+    geom_bar(position='dodge', stat='identity') +
+    geom_text(aes(label=round(`Mean Reputation`, digits=2)), vjust=-0.3, color = 'black',
+              position=position_dodge(0.9), size=3)
+
+```
+
+# Scatterplot
+
+```{r}
+usn %>%
+  mutate(Type = factor(Type, levels=1:2, labels=c('Public','Private'))) %>%
+  filter(YearId == 2018) %>%
+  ggplot(aes(x=`Peer Assessment Score`, y=`High school counselor assessment score`, color=Type)) +
+    geom_point()
+```
+
+# Cleveland Dot Plot
+
+```{r}
+usn %>%
+  mutate(Type = factor(Type, levels=1:2, labels=c('Public','Private'))) %>%
+  filter(YearId == 2018 & (Rank > 94 & Rank < 136)) %>%
+  ggplot(aes(x=`Overall Score`, y=reorder(School, -Rank), color=Type)) +
+    geom_point(size=3) +
+    theme_bw() +
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          panel.grid.major.y = element_line(color='grey60', linetype='dashed'))
 ```
 
